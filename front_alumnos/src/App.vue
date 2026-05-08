@@ -4,7 +4,7 @@
     <div class="card shadow p-4">
       <h3 class="text-center mb-3">Iniciar Sesión</h3>
 
-      <input type="text" class="form-control mb-2" placeholder="Usuario" maxlength="8" v-model="usuario">
+      <input type="text" class="form-control mb-2" placeholder="RFC" maxlength="13" v-model="usuario">
       <small class="text-danger" v-if="erroresLogin.user">{{ erroresLogin.user }}</small>
       <input type="password" class="form-control mb-3" placeholder="Contraseña" maxlength="8" v-model="password">
       <small class="text-danger" v-if="erroresLogin.pass">{{ erroresLogin.pass }}</small>
@@ -22,9 +22,12 @@
     <div class="card shadow p-4">
       <h3 class="text-center mb-3">Crear Usuario</h3>
 
-      <input type="text" class="form-control mb-2" placeholder="Nuevo usuario" maxlength="8" v-model="nuevoUsuario.user">
-      <div class="form-text mb-2">Usuario entre 4 y 8 caracteres.</div>
+      <input type="text" class="form-control mb-2" placeholder="RFC (13 caracteres)" maxlength="13" v-model="nuevoUsuario.user">
+      <div class="form-text mb-2">Formato: 4 letras, 6 números, 3 alfanuméricos.</div>
       <small class="text-danger" v-if="erroresRegistro.user">{{ erroresRegistro.user }}</small>
+
+      <input type="text" class="form-control mb-2" placeholder="Nombre del Profesor" maxlength="100" v-model="nuevoUsuario.nombre">
+      <small class="text-danger" v-if="erroresRegistro.nombre">{{ erroresRegistro.nombre }}</small>
 
       <input type="password" class="form-control mb-2" placeholder="Nueva contraseña" maxlength="8" v-model="nuevoUsuario.pass">
       <div class="form-text mb-2">La contraseña debe tener entre 4 y 8 caracteres.</div>
@@ -60,20 +63,7 @@
             <button class="sidebar-link" :class="{ active: seccionActiva === 'horario' }" @click="seleccionarSeccion('horario')">Horario</button>
           </div>
 
-          <div class="sidebar-summary">
-            <div class="summary-pill">
-              <span>Total alumnos</span>
-              <strong>{{ totalAlumnos }}</strong>
-            </div>
-            <div class="summary-pill">
-              <span>Grupos</span>
-              <strong>{{ gruposResumen.length }}</strong>
-            </div>
-            <div class="summary-pill">
-              <span>Materias</span>
-              <strong>{{ materiasResumen.length }}</strong>
-            </div>
-          </div>
+
         </div>
       </aside>
 
@@ -125,7 +115,7 @@
 
         <div v-else-if="seccionActiva === 'materias'" class="card shadow-sm p-4">
           <h3 class="mb-3">Materias</h3>
-          <div class="row g-3">
+          <div class="row g-3" v-if="materiasResumen.length > 0">
             <div v-for="item in materiasResumen" :key="item.valor" class="col-md-4">
               <div class="card grupo-item h-100 materia-clickable" :class="{ 'materia-activa': materiaSeleccionada === item.valor }" @click="seleccionarMateria(item.valor)">
                 <div class="card-body">
@@ -134,6 +124,11 @@
                 </div>
               </div>
             </div>
+          </div>
+          
+          <div v-else class="text-center py-5 text-muted">
+            <h5>No hay materias registradas</h5>
+            <p>Las materias se crearán automáticamente al registrar alumnos. Ve a la sección de "Alumnos" para comenzar.</p>
           </div>
 
           <div class="mt-4 border-top pt-3" v-if="materiaSeleccionada">
@@ -144,10 +139,38 @@
               </div>
               <div class="d-flex align-items-center gap-2">
                 <span class="badge text-bg-primary">{{ alumnosMateriaSeleccionada.length }} alumnos</span>
+                <button type="button" class="btn btn-sm btn-warning" @click="abrirEdicionMateria" :disabled="alumnosMateriaSeleccionada.length === 0">
+                  Editar Materia
+                </button>
                 <button type="button" class="btn btn-sm btn-danger" @click="imprimirListaMateriaPDF" :disabled="alumnosMateriaSeleccionada.length === 0">
                   Imprimir PDF
                 </button>
               </div>
+            </div>
+
+            <div v-if="editandoMateria" class="border rounded-3 p-3 mb-4 bg-light shadow-sm">
+              <h5 class="mb-3">Editar Detalles de la Materia</h5>
+              <form @submit.prevent="guardarEdicionMateria">
+                <div class="row g-2">
+                  <div class="col-md-4">
+                    <label class="form-label">Nombre de la Materia</label>
+                    <input type="text" class="form-control" v-model="formMateria.materia" required>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Grupo</label>
+                    <input type="text" class="form-control" v-model="formMateria.grupo" required>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Horario</label>
+                    <input type="text" class="form-control" v-model="formMateria.horario" placeholder="Ej. 08:00 AM - 10:00 AM" maxlength="25" required>
+                    <div class="form-text">Formato: HH:MM AM/PM - HH:MM AM/PM</div>
+                  </div>
+                </div>
+                <div class="mt-3 d-flex gap-2 justify-content-end">
+                  <button type="button" class="btn btn-secondary" @click="editandoMateria = false">Cancelar</button>
+                  <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                </div>
+              </form>
             </div>
 
             <div class="table-responsive" v-if="alumnosMateriaSeleccionada.length > 0">
@@ -252,8 +275,8 @@
                 </div>
                 <div class="col-md-4">
                   <label class="form-label">Horario</label>
-                  <input type="text" class="form-control" :class="{ 'is-invalid': errores.horario }" v-model="nuevoAlumno.horario" placeholder="Ej. 08:00 - 10:00" maxlength="13">
-                  <div class="form-text">Formato: HH:MM - HH:MM (ej. 08:00 - 10:00)</div>
+                  <input type="text" class="form-control" :class="{ 'is-invalid': errores.horario }" v-model="nuevoAlumno.horario" placeholder="Ej. 08:00 AM - 10:00 AM" maxlength="25">
+                  <div class="form-text">Formato: HH:MM AM/PM - HH:MM AM/PM</div>
                   <small class="text-danger" v-if="errores.horario">{{ errores.horario }}</small>
                 </div>
               </div>
@@ -263,38 +286,36 @@
 
           <div v-if="!mostrarFormulario" class="card shadow-sm mt-2">
             <div class="card-body">
-              <h5 class="card-title mb-3">Lista de Alumnos</h5>
+              <div class="d-flex flex-wrap align-items-center mb-3 gap-3" style="justify-content: space-evenly;">
+                <h5 class="card-title mb-0" style="flex: 1; text-align: center;">Lista de Alumnos</h5>
+                
+                <div style="flex: 1; min-width: 200px;">
+                  <select class="form-select" v-model="carreraSeleccionada" aria-label="Filtrar por carrera">
+                    <option value="">Todas las carreras</option>
+                    <option v-for="carrera in carrerasDisponibles" :key="`filtro-${carrera}`" :value="carrera">{{ carrera }}</option>
+                  </select>
+                </div>
+
+                <div class="search-bar" style="flex: 1; min-width: 200px;">
+                  <input list="lista-nombres" type="search" class="form-control" v-model="busquedaNombre" placeholder="Buscar alumno por nombre..." aria-label="Buscar alumno por nombre">
+                  <datalist id="lista-nombres">
+                    <option v-for="nombre in nombresDisponibles" :key="nombre" :value="nombre">{{ nombre }}</option>
+                  </datalist>
+                </div>
+              </div>
               <div class="table-responsive">
-                <table class="table table-hover align-middle table-bordered tabla-alumnos">
+                <table class="table table-hover align-middle table-bordered tabla-alumnos text-center" style="table-layout: fixed; word-wrap: break-word;">
                   <thead class="table-dark">
-                    <tr>
-                      <th style="width:10%">No. Control</th>
-                      <th style="width:28%" class="nombre-columna">
-                        <div class="nombre-header-control">
-                          <span>Nombre</span>
-                          <div class="nombre-controles">
-                            <input list="lista-nombres" type="search" class="form-control form-control-sm nombre-select" v-model="busquedaNombre" placeholder="Buscar o seleccionar alumno" aria-label="Buscar o seleccionar alumno por nombre">
-                            <datalist id="lista-nombres">
-                              <option v-for="nombre in nombresDisponibles" :key="nombre" :value="nombre">{{ nombre }}</option>
-                            </datalist>
-                          </div>
-                        </div>
-                      </th>
-                      <th style="width:12%">Apellidos</th>
-                      <th style="width:25%" class="carrera-columna">
-                        <div class="carrera-header-control">
-                          <span>Carrera</span>
-                          <select class="form-select" v-model="carreraSeleccionada" aria-label="Filtrar por carrera">
-                            <option value="">Todas las carreras</option>
-                            <option v-for="carrera in carrerasDisponibles" :key="`filtro-${carrera}`" :value="carrera">{{ carrera }}</option>
-                          </select>
-                        </div>
-                      </th>
-                      <th style="width:10%">Teléfono</th>
-                      <th style="width:15%">Materia</th>
-                      <th style="width:8%">Grupo</th>
-                      <th style="width:12%">Horario</th>
-                      <th class="acciones-columna">Acciones</th>
+                    <tr style="text-align: center;">
+                      <th style="width: 11.11%;">No. Control</th>
+                      <th style="width: 11.11%;">Nombre</th>
+                      <th style="width: 11.11%;">Apellidos</th>
+                      <th style="width: 11.11%;">Carrera</th>
+                      <th style="width: 11.11%;">Teléfono</th>
+                      <th style="width: 11.11%;">Materia</th>
+                      <th style="width: 11.11%;">Grupo</th>
+                      <th style="width: 11.11%;">Horario</th>
+                      <th style="width: 11.11%;">Acciones</th>
                     </tr>
                   </thead>
 
@@ -362,15 +383,39 @@ const vista = ref('login')
 const usuarioSesion = ref('')
 const usuario = ref('')
 const password = ref('')
-const nuevoUsuario = ref({ user: '', pass: '' })
+const nuevoUsuario = ref({ user: '', pass: '', nombre: '' })
 const erroresLogin = ref({ user: '', pass: '' })
-const erroresRegistro = ref({ user: '', pass: '' })
+const erroresRegistro = ref({ user: '', pass: '', nombre: '' })
 const usuariosRegistrados = ref([])
 const STORAGE_USERS_KEY = 'crud4_users'
 const seccionActiva = ref('resumen')
 const menuAbierto = ref(false)
 const mostrarFormulario = ref(false)
 const materiaSeleccionada = ref('')
+const editandoMateria = ref(false)
+const formMateria = ref({ materia: '', grupo: '', horario: '' })
+
+// Medidas de Seguridad Frontend
+const intentosFallidos = ref(0)
+const bloqueadoHasta = ref(null)
+let timerInactividad = null
+
+const hashPassword = async (pass) => {
+  const msgBuffer = new TextEncoder().encode(pass)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+const reiniciarTimerInactividad = () => {
+  if (timerInactividad) clearTimeout(timerInactividad)
+  if (isAuthenticated.value) {
+    timerInactividad = setTimeout(() => {
+      cerrarSesion()
+      Swal.fire({ icon: 'warning', title: 'Sesión Expirada', text: 'Tu sesión se cerró automáticamente por inactividad.' })
+    }, 10 * 60 * 1000) // 10 minutos
+  }
+}
 
 const nuevoAlumno = ref({
   id: null,
@@ -562,7 +607,8 @@ const irPagina = (page) => {
 }
 
 const cargarUsuarios = () => {
-  const base = [{ user: 'admin', pass: '123456' }]
+  // admin pass "123456" con hash SHA-256
+  const base = [{ user: 'admin', pass: '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', nombre: 'Administrador' }]
   try {
     const raw = localStorage.getItem(STORAGE_USERS_KEY)
     if (!raw) {
@@ -586,54 +632,75 @@ const cargarUsuarios = () => {
 }
 
 const login = async () => {
+  if (bloqueadoHasta.value && Date.now() < bloqueadoHasta.value) {
+    const faltan = Math.ceil((bloqueadoHasta.value - Date.now()) / 1000)
+    Swal.fire({ icon: 'error', title: 'Cuenta bloqueada temporalmente', text: `Demasiados intentos. Intenta en ${faltan} segundos.` })
+    return
+  }
+
   erroresLogin.value = { user: '', pass: '' }
   const user = (usuario.value || '').trim()
   const pass = (password.value || '').trim()
 
-  if (!user) erroresLogin.value.user = 'El usuario es obligatorio.'
-  else if (user.length < 4 || user.length > 8) erroresLogin.value.user = 'Debe tener entre 4 y 8 caracteres.'
+  if (!user) erroresLogin.value.user = 'El RFC es obligatorio.'
+  else if (user !== 'admin' && !/^[A-ZÑ&]{4}\d{6}[A-Z0-9]{3}$/i.test(user)) erroresLogin.value.user = 'Formato inválido (4 letras, 6 números, 3 alfanum).'
 
   if (!pass) erroresLogin.value.pass = 'La contraseña es obligatoria.'
   else if (pass.length < 4 || pass.length > 8) erroresLogin.value.pass = 'Debe tener entre 4 y 8 caracteres.'
 
   if (erroresLogin.value.user || erroresLogin.value.pass) return
 
-  const existe = usuariosRegistrados.value.some((u) => u.user === user && u.pass === pass)
+  const hashedPass = await hashPassword(pass)
+  const existe = usuariosRegistrados.value.find((u) => u.user === user && u.pass === hashedPass)
+  
   if (!existe) {
-    erroresLogin.value.pass = 'Usuario o contraseña incorrectos.'
+    intentosFallidos.value++
+    if (intentosFallidos.value >= 3) {
+      bloqueadoHasta.value = Date.now() + 30000 // Bloqueo de 30s
+      intentosFallidos.value = 0
+      Swal.fire({ icon: 'error', title: 'Cuenta bloqueada', text: 'Has fallado 3 veces. Espera 30 segundos por seguridad.' })
+    } else {
+      erroresLogin.value.pass = `RFC o contraseña incorrectos. Intentos restantes: ${3 - intentosFallidos.value}`
+    }
     return
   }
 
+  intentosFallidos.value = 0
   isAuthenticated.value = true
-  usuarioSesion.value = user
+  usuarioSesion.value = existe.nombre || user
   seccionActiva.value = 'resumen'
   menuAbierto.value = false
   mostrarFormulario.value = false
+  reiniciarTimerInactividad()
   await cargarAlumnos()
 }
 
-const registrar = () => {
-  erroresRegistro.value = { user: '', pass: '' }
-  const user = (nuevoUsuario.value.user || '').trim()
+const registrar = async () => {
+  erroresRegistro.value = { user: '', pass: '', nombre: '' }
+  const user = (nuevoUsuario.value.user || '').trim().toUpperCase()
   const pass = (nuevoUsuario.value.pass || '').trim()
+  const nombre = (nuevoUsuario.value.nombre || '').trim()
 
-  if (!user) erroresRegistro.value.user = 'El usuario es obligatorio.'
-  else if (user.length < 4 || user.length > 8) erroresRegistro.value.user = 'Debe tener entre 4 y 8 caracteres.'
+  if (!user) erroresRegistro.value.user = 'El RFC es obligatorio.'
+  else if (!/^[A-ZÑ&]{4}\d{6}[A-Z0-9]{3}$/i.test(user)) erroresRegistro.value.user = 'Debe tener 4 letras, 6 números y 3 alfanuméricos.'
+
+  if (!nombre) erroresRegistro.value.nombre = 'El nombre del profesor es obligatorio.'
 
   if (!pass) erroresRegistro.value.pass = 'La contraseña es obligatoria.'
   else if (pass.length < 4 || pass.length > 8) erroresRegistro.value.pass = 'Debe tener entre 4 y 8 caracteres.'
 
-  if (erroresRegistro.value.user || erroresRegistro.value.pass) return
+  if (erroresRegistro.value.user || erroresRegistro.value.pass || erroresRegistro.value.nombre) return
 
-  const yaExiste = usuariosRegistrados.value.some((u) => u.user === user)
+  const yaExiste = usuariosRegistrados.value.some((u) => u.user.toUpperCase() === user)
   if (yaExiste) {
-    erroresRegistro.value.user = 'Ese usuario ya existe.'
+    erroresRegistro.value.user = 'Ese RFC ya existe.'
     return
   }
 
-  usuariosRegistrados.value.push({ user, pass })
+  const hashedPass = await hashPassword(pass)
+  usuariosRegistrados.value.push({ user, pass: hashedPass, nombre })
   localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(usuariosRegistrados.value))
-  nuevoUsuario.value = { user: '', pass: '' }
+  nuevoUsuario.value = { user: '', pass: '', nombre: '' }
   vista.value = 'login'
   Swal.fire({ icon: 'success', title: 'Usuario creado', timer: 1400, showConfirmButton: false })
 }
@@ -648,6 +715,10 @@ const cerrarSesion = () => {
   seccionActiva.value = 'resumen'
   menuAbierto.value = false
   mostrarFormulario.value = false
+  if (timerInactividad) {
+    clearTimeout(timerInactividad)
+    timerInactividad = null
+  }
 }
 
 const seleccionarSeccion = (seccion) => {
@@ -687,7 +758,15 @@ const imprimirListaMateriaPDF = () => {
   doc.text(`Periodo: ${periodo}`, 14, 36)
   doc.text(`Materia: ${materia}`, 14, 42)
   doc.text(`Grupo: ${grupo}`, 14, 48)
-  doc.text(`Horario: ${horario}`, 14, 54)
+
+  autoTable(doc, {
+    startY: 54,
+    head: [['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes']],
+    body: [[horario, horario, horario, horario, horario]],
+    styles: { fontSize: 9, halign: 'center' },
+    headStyles: { fillColor: [22, 50, 79], halign: 'center' },
+    margin: { left: 14, right: 14 }
+  })
 
   const body = alumnosMateriaOrdenados.value.map((alumno, index) => [
     String(index + 1),
@@ -698,7 +777,7 @@ const imprimirListaMateriaPDF = () => {
   ])
 
   autoTable(doc, {
-    startY: 61,
+    startY: doc.lastAutoTable.finalY + 10,
     head: [['No.', 'No. Control', 'Nombre', 'Apellidos', 'Grupo']],
     body,
     styles: { fontSize: 9 },
@@ -788,12 +867,12 @@ const validarFormulario = () => {
     errores.value.grupo = "El campo es obligatorio"
   }
 
-  // Formato estricto: HH:MM - HH:MM  (ej. 08:00 - 10:00)
+  // Formato: HH:MM AM/PM - HH:MM AM/PM (AM/PM opcional)
   const horarioVal = (nuevoAlumno.value.horario || '').trim()
   if (!horarioVal) {
     errores.value.horario = "El campo es obligatorio"
-  } else if (!/^([01]\d|2[0-3]):[0-5]\d - ([01]\d|2[0-3]):[0-5]\d$/.test(horarioVal)) {
-    errores.value.horario = "Formato inválido. Use HH:MM - HH:MM (ej. 08:00 - 10:00)"
+  } else if (!/^([01]?\d|2[0-3]):[0-5]\d(?:\s?[aA][mM]|\s?[pP][mM])?\s*-\s*([01]?\d|2[0-3]):[0-5]\d(?:\s?[aA][mM]|\s?[pP][mM])?$/.test(horarioVal)) {
+    errores.value.horario = "Formato inválido. Use HH:MM AM/PM - HH:MM AM/PM"
   }
 
   if (!/^(?:\+52|52)?\d{10}$/.test(nuevoAlumno.value.telefono)) {
@@ -871,6 +950,49 @@ const agregarAlumno = async () => {
 }
 
 // =====================
+// Edición de Materia
+// =====================
+const abrirEdicionMateria = () => {
+  formMateria.value = {
+    materia: materiaSeleccionada.value,
+    grupo: gruposMateriaSeleccionada.value.join(', ') || '',
+    horario: horarioMateriaSeleccionada.value === 'Sin horario' ? '' : horarioMateriaSeleccionada.value
+  }
+  editandoMateria.value = true
+}
+
+const guardarEdicionMateria = async () => {
+  const nuevaMateria = normalizeWords(formMateria.value.materia)
+  const nuevoGrupo = normalizeWords(formMateria.value.grupo)
+  const nuevoHorario = formMateria.value.horario.trim()
+
+  if (!/^([01]?\d|2[0-3]):[0-5]\d(?:\s?[aA][mM]|\s?[pP][mM])?\s*-\s*([01]?\d|2[0-3]):[0-5]\d(?:\s?[aA][mM]|\s?[pP][mM])?$/.test(nuevoHorario)) {
+    Swal.fire({ icon: 'error', title: 'Error', text: 'Formato de horario inválido. Use HH:MM AM/PM - HH:MM AM/PM (ej. 08:00 AM - 10:00 AM)' })
+    return
+  }
+
+  try {
+    const promesas = alumnosMateriaSeleccionada.value.map(alumno => {
+      const payload = {
+        ...alumno,
+        materia: nuevaMateria,
+        grupo: nuevoGrupo,
+        horario: nuevoHorario
+      }
+      return axios.put(`${API_BASE}/editar-alumnos/${alumno.id}`, payload)
+    })
+
+    await Promise.all(promesas)
+    Swal.fire({ icon: 'success', title: 'Materia actualizada', text: 'Se actualizaron los datos para todos los alumnos de la materia.', showConfirmButton: false, timer: 2000 })
+    editandoMateria.value = false
+    materiaSeleccionada.value = nuevaMateria
+    await cargarAlumnos()
+  } catch (error) {
+    Swal.fire({ icon: 'error', title: 'Error', text: 'Ocurrió un problema al actualizar los alumnos' })
+  }
+}
+
+// =====================
 // Editar alumno
 // =====================
 const editarAlumnos = (alumno) => {
@@ -923,6 +1045,10 @@ const formatTelefono = (num) => {
 onMounted(() => {
   cargarUsuarios()
   if (isAuthenticated.value) cargarAlumnos()
+  
+  window.addEventListener('mousemove', reiniciarTimerInactividad)
+  window.addEventListener('keypress', reiniciarTimerInactividad)
+  window.addEventListener('click', reiniciarTimerInactividad)
 })
 </script>
 
