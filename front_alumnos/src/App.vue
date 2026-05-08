@@ -4,7 +4,7 @@
     <div class="card shadow p-4">
       <h3 class="text-center mb-3">Iniciar Sesión</h3>
 
-      <input type="text" class="form-control mb-2" placeholder="RFC" maxlength="13" v-model="usuario">
+      <input type="text" class="form-control mb-2" placeholder="RFC" maxlength="13" v-model="usuario" @input="usuario = usuario.toUpperCase()">
       <small class="text-danger" v-if="erroresLogin.user">{{ erroresLogin.user }}</small>
       <input type="password" class="form-control mb-3" placeholder="Contraseña" maxlength="8" v-model="password">
       <small class="text-danger" v-if="erroresLogin.pass">{{ erroresLogin.pass }}</small>
@@ -22,7 +22,7 @@
     <div class="card shadow p-4">
       <h3 class="text-center mb-3">Crear Usuario</h3>
 
-      <input type="text" class="form-control mb-2" placeholder="RFC (13 caracteres)" maxlength="13" v-model="nuevoUsuario.user">
+      <input type="text" class="form-control mb-2" placeholder="RFC (13 caracteres)" maxlength="13" v-model="nuevoUsuario.user" @input="nuevoUsuario.user = nuevoUsuario.user.toUpperCase()">
       <div class="form-text mb-2">Formato: 4 letras, 6 números, 3 alfanuméricos.</div>
       <small class="text-danger" v-if="erroresRegistro.user">{{ erroresRegistro.user }}</small>
 
