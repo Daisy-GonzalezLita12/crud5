@@ -373,6 +373,7 @@ import Swal from 'sweetalert2'
 import axios from 'axios'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import CryptoJS from 'crypto-js'
 
 // Usa la IP/hostname desde donde se abre la app para que funcione en red local
 const API_BASE = `http://${window.location.hostname}:8081/alumnos`
@@ -401,10 +402,7 @@ const bloqueadoHasta = ref(null)
 let timerInactividad = null
 
 const hashPassword = async (pass) => {
-  const msgBuffer = new TextEncoder().encode(pass)
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  return CryptoJS.SHA256(pass).toString(CryptoJS.enc.Hex)
 }
 
 const reiniciarTimerInactividad = () => {
@@ -650,29 +648,34 @@ const login = async () => {
 
   if (erroresLogin.value.user || erroresLogin.value.pass) return
 
-  const hashedPass = await hashPassword(pass)
-  const existe = usuariosRegistrados.value.find((u) => u.user === user && u.pass === hashedPass)
-  
-  if (!existe) {
-    intentosFallidos.value++
-    if (intentosFallidos.value >= 3) {
-      bloqueadoHasta.value = Date.now() + 30000 // Bloqueo de 30s
-      intentosFallidos.value = 0
-      Swal.fire({ icon: 'error', title: 'Cuenta bloqueada', text: 'Has fallado 3 veces. Espera 30 segundos por seguridad.' })
-    } else {
-      erroresLogin.value.pass = `RFC o contraseña incorrectos. Intentos restantes: ${3 - intentosFallidos.value}`
+  try {
+    const hashedPass = await hashPassword(pass)
+    const existe = usuariosRegistrados.value.find((u) => u.user === user && u.pass === hashedPass)
+    
+    if (!existe) {
+      intentosFallidos.value++
+      if (intentosFallidos.value >= 3) {
+        bloqueadoHasta.value = Date.now() + 30000 // Bloqueo de 30s
+        intentosFallidos.value = 0
+        Swal.fire({ icon: 'error', title: 'Cuenta bloqueada', text: 'Has fallado 3 veces. Espera 30 segundos por seguridad.' })
+      } else {
+        erroresLogin.value.pass = `RFC o contraseña incorrectos. Intentos restantes: ${3 - intentosFallidos.value}`
+      }
+      return
     }
-    return
-  }
 
-  intentosFallidos.value = 0
-  isAuthenticated.value = true
-  usuarioSesion.value = existe.nombre || user
-  seccionActiva.value = 'resumen'
-  menuAbierto.value = false
-  mostrarFormulario.value = false
-  reiniciarTimerInactividad()
-  await cargarAlumnos()
+    intentosFallidos.value = 0
+    isAuthenticated.value = true
+    usuarioSesion.value = existe.nombre || user
+    seccionActiva.value = 'resumen'
+    menuAbierto.value = false
+    mostrarFormulario.value = false
+    reiniciarTimerInactividad()
+    await cargarAlumnos()
+  } catch (err) {
+    console.error(err)
+    Swal.fire({ icon: 'error', title: 'Error del sistema', text: err.message || 'No se pudo iniciar sesión.' })
+  }
 }
 
 const registrar = async () => {
@@ -697,12 +700,17 @@ const registrar = async () => {
     return
   }
 
-  const hashedPass = await hashPassword(pass)
-  usuariosRegistrados.value.push({ user, pass: hashedPass, nombre })
-  localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(usuariosRegistrados.value))
-  nuevoUsuario.value = { user: '', pass: '', nombre: '' }
-  vista.value = 'login'
-  Swal.fire({ icon: 'success', title: 'Usuario creado', timer: 1400, showConfirmButton: false })
+  try {
+    const hashedPass = await hashPassword(pass)
+    usuariosRegistrados.value.push({ user, pass: hashedPass, nombre })
+    localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(usuariosRegistrados.value))
+    nuevoUsuario.value = { user: '', pass: '', nombre: '' }
+    vista.value = 'login'
+    Swal.fire({ icon: 'success', title: 'Usuario creado', timer: 1400, showConfirmButton: false })
+  } catch (err) {
+    console.error(err)
+    Swal.fire({ icon: 'error', title: 'Error del sistema', text: err.message || 'No se pudo registrar el usuario.' })
+  }
 }
 
 const cerrarSesion = () => {
