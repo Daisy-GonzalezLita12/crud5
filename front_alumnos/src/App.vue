@@ -184,7 +184,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="alumno in alumnosMateriaSeleccionada" :key="`materia-${alumno.id}`">
+                  <tr v-for="alumno in alumnosMateriaOrdenados" :key="`materia-${alumno.id}`">
                     <td>{{ alumno.numeroControl || '-' }}</td>
                     <td>{{ alumno.nombre }}</td>
                     <td>{{ alumno.apellido }}</td>
@@ -833,7 +833,7 @@ const cargarAlumnos = async () => {
     alumnos.value = Array.isArray(data) ? data : []
   } catch (error) {
     console.error(error)
-    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar alumnos desde localhost:8081' })
+    Swal.fire({ icon: 'error', title: 'Error de conexión', text: `No se pudo conectar al servidor en ${API_BASE}. Verifica que el backend esté corriendo.` })
   }
 }
 
@@ -895,9 +895,17 @@ const validarFormulario = () => {
 // Formatear teléfono automático
 // =====================
 watch(() => nuevoAlumno.value.telefono, (val) => {
+  // Guardia: solo procesar si el valor no es ya un número con prefijo correcto
+  if (typeof val !== 'string') return
+  // Si ya empieza con +52 seguido de 10 dígitos, no modificar para evitar bucle
+  if (/^\+52\d{10}$/.test(val)) return
   let soloNumeros = val.replace(/\D/g, '')
-  if (!soloNumeros.startsWith('52')) soloNumeros = '+52' + soloNumeros
-  nuevoAlumno.value.telefono = soloNumeros
+  if (soloNumeros.startsWith('52') && soloNumeros.length > 10) {
+    // ya tiene el código de país, no duplicar
+    nuevoAlumno.value.telefono = soloNumeros
+  } else if (!soloNumeros.startsWith('52')) {
+    nuevoAlumno.value.telefono = soloNumeros
+  }
 })
 
 watch([carreraSeleccionada, busquedaNombre], () => {

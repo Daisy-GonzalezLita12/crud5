@@ -1,7 +1,7 @@
 
 import { initializeApp } from "firebase/app"
 import { getFirestore } from "firebase/firestore"
-import { getAnalytics } from "firebase/analytics"
+import { getAnalytics, isSupported } from "firebase/analytics"
 
 
 const firebaseConfig = {
@@ -17,8 +17,12 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig)
 
+// Analytics solo se inicializa si el entorno lo soporta (evita errores en SSR o browsers restrictivos)
+isSupported().then((supported) => {
+  if (supported) {
+    getAnalytics(app)
+  }
+}).catch(() => {})
 
-const analytics = getAnalytics(app)
 
-
-export const db = getFirestore(app)
+export const db = getFirestore(app)
